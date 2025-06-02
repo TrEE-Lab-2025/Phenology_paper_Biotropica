@@ -1,0 +1,130 @@
+---
+title: "R Notebook_Kaas_network_strength_2018_&_2019"
+output: html_notebook
+---
+
+*"Kaas 2018 & 2019: Plant-pollinator network"*
+
+**Plotting overall flowering season: 2018 & 2019 combined**
+
+1. Running libraries
+
+```{r}
+library(r2d3)
+library(bipartite)
+library(purrr) 
+library(dplyr) 
+library(tidyr) 
+library(stringr)
+library(tibble)
+library(RColorBrewer)
+library(bipartiteD3)
+library(reshape2)
+library(googlesheets4)
+```
+
+2. Load and read data
+
+```{r}
+#Read googlesheets
+data_network <- read_sheet('Link has been removed', sheet = 1)
+```
+3. Process data
+
+```{r}
+
+#My data set does not have the average of the visitation rate per unique plant-pollinator combination
+#To take average visitation rate per unique plant-pollinator combination
+library(plyr)
+
+#Extracting the data I require for network analysis and calculating the mean visitation rate
+#Extract data mentioning the column names and not numbers because later you may add or remove some
+
+sub_data <- ddply(data_network, .(Flo_sp, Pollinator_type), summarize, mean=mean(visitation_rate_per_flower_per_hour, na.rm = TRUE))
+
+#To find the rows in which pollinator type is NA. With '!' the places with NA will be marked as FALSE and not considered in data-set.
+a <- !is.na(sub_data$Pollinator_type) 
+sub_data_mean <- sub_data[a,]
+
+#Added the column with WebID as KAAS for 130 rows as bipartite function requires WebID
+WebID = c(rep("KAAS", 130))
+sub_data_mean2 = cbind(sub_data_mean, WebID)
+
+#using dcast function to convert long format to wide format, as plotweb function requires the data in short format
+library(reshape2)
+library(readr)
+
+#I would use the data with removed NA values, and no webID, which is 'sub_data_mean'
+#Function 'dcast': data.frame will be automatically converted to data.table, as is needed for plotweb function 
+mydata_dcast <- dcast(sub_data_mean2, Flo_sp ~ Pollinator_type, value.var = "mean")
+
+#Replacing all NA with zeros
+mydata_dcast[is.na(mydata_dcast)] = 0
+
+#Removing the 8th column as the column name is 'NA' with all 0 values
+mydata_dcast = mydata_dcast[,-8]
+
+row.names(mydata_dcast) <- mydata_dcast$Flo_sp
+
+#Remove the first column
+mydata_dcast = mydata_dcast[,-1]
+
+#Round of the values to 1 decimal point
+mydata_dcast2 = round(mydata_dcast, 1)
+
+#removing the species that have all 0, that is, no visitation by any pollinator type
+#subsetting the data as 'data_final'
+
+data_final <- mydata_dcast2[rowSums(mydata_dcast2[])>0,]
+
+```
+
+4. Plotting the non-interactive network
+
+```{r}
+#To plot species as per your desired sequence, add them in a sequence inside a particular vector and mention it as 'seq.high' and 'seq.low' in plotweb function.
+
+seq.low <- c("IsoLop","HabHey","ParCoe","PinCon","EriSed","PolChi","SmiBig","SmiHir","LinMys","ImpDal","SenBom","MurLan","MurBro","SopDel","RotFlo","DesRac","ImpTom","JusDif","ImpBal","ImpLaw","PogDec","UtrPur","ExaPum","SolAng","MurSim","NeaMon","VigVex","AsyDal","AdeInd","StrSes","CyaFas","CyaTub","ComBen")
+
+#Using updated hex codes by taking average of the floral colour, rather than a single pixel
+col_low <- c("IsoLop"="#d8d3d4","HabHey"="#cbccce","ParCoe"="#bfbebe","PinCon"="#bebdb5","EriSed"="#d0ccbe","PolChi"="#dedcae","SmiBig"="#fac926","SmiHir"="#e6b302","LinMys"="#dcc103","ImpDal"="#d9c636","SenBom"="#cdc131","MurLan"="#c19968","MurBro"="#db8051","SopDel"="#b36392","RotFlo"="#b64d8a","DesRac"="#c145a9","ImpTom"="#ef4ada","JusDif"="#b478ba","ImpBal"="#b36ebb","ImpLaw"="#9a4f95","PogDec"="#6a427a","UtrPur"="#583796","ExaPum"="#613e9d","SolAng"="#613e9d","MurSim"="#8f82b8","NeaMon"="#c699e7","VigVex"="#a57eb3","AsyDal"="#a175b3","AdeInd"="#a174bf","StrSes"="#8b6dc9","CyaFas"="#8a61f2","CyaTub"="#6253d2","ComBen"="#2b428e")
+
+seq.high <- c("Bee","Beetle","Fly","Wasp","Ant","Butterfly","Moth")
+
+col_high <-c("Bee"="#800000","Beetle"="#F08080","Fly"="#DC143C","Wasp"="#20B2AA","Ant"="#008080","Butterfly"="#FF7F50","Moth"="#98FB98")
+
+#creating a list of two with two names vectors 
+sequence <- list(seq.higher=seq.high, seq.lower=seq.low)
+web.ordered <- sortweb(data_final, sort.order="seq", sequence=sequence)
+
+plotweb(web.ordered, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.213, col.low= col_low, col.high = col_high, bor.col.low = col_low, bor.col.high = col_high, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+
+#To save image
+#png(filename = "Kaas_pollination_network_2018_&_2019.png", width = 16, height = 8.5, units = "in", bg = "white", res = 300)
+#plotweb(web.ordered, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.213, col.low= col_low, col.high = col_high, bor.col.low = col_low, bor.col.high = col_high, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+#dev.off()
+
+```
+
+
+6. Calculate indices: Overall flowering season for both the years (2018 & 2019)
+
+```{r}
+
+#To calculate the indices at network level
+b <- networklevel(data.network [[1]], index="ALLBUTDD", level="both", weighted=TRUE, ISAmethod="Bluethgen", SAmethod = "Bluethgen", extinctmethod = "r", nrep = 100, CCfun=median, dist="horn", normalise=TRUE, empty.web=TRUE, logbase="e", intereven="prod", H2_integer=TRUE, fcweighted=TRUE, fcdist="euclidean", legacy=FALSE)
+
+write.csv(b, file = "Cumulative_networklevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Plants
+c <- specieslevel(data.network [[1]], index="ALLBUTD", level="lower", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(c, file = "Cumulative_Plant_specieslevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Pollinators
+d <- specieslevel(data.network [[1]], index="ALLBUTD", level="higher", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(d, file = "Cumulative_Pollinator_specieslevel_indices_kaas_2018_&_2019.csv")
+```
+
+Similarly we plotted the season wise networks and calculated the indices for them.
