@@ -1,0 +1,69 @@
+---
+title: "Calculating threshold to identify high density flowering"
+output: html_notebook
+---
+
+
+Calculate the threshold for year 2018
+```{r}
+# read the file
+mydata_2018 = read.csv("Kaas_Phenology_2018.csv")
+
+# Calculate community threshold for each census
+thresholds <- sapply(mydata_2018[, -c(1:5)], function(x) mean(x, na.rm = TRUE) + 1.64*(sd(x, na.rm = TRUE)))
+print(thresholds)  # This prints a vector of thresholds for each of the six census readings
+
+# Now, for each species (each row), check if its density in any one census exceeds the corresponding threshold
+mydata_2018$HighDensity <- apply(mydata_2018[, -c(1:5)], 1, function(x) any(x >= thresholds))
+
+
+# List of species that are defined as high density flowering for that year
+high_density_species <- mydata_2018$Flowering_species[mydata_2018$HighDensity]
+print(high_density_species)
+
+
+#Save the output
+write.csv(mydata_2018, file = "highdensity_sp_2018.csv")
+```
+
+Calculate the threshold for year 2019
+```{r}
+# read the file
+mydata_2019 = read.csv("Kaas_Phenology_2019.csv")
+
+# Calculate community threshold for each census 
+thresholds <- sapply(mydata_2019[, -c(1:5)], function(x) mean(x, na.rm = TRUE) + 1.64*(sd(x, na.rm = TRUE)))
+print(thresholds)  # This prints a vector of thresholds for each of the six census readings
+
+# Now, for each species (each row), check if its density in any one census exceeds the corresponding threshold
+mydata_2019$HighDensity <- apply(mydata_2019[, -c(1:5)], 1, function(x) any(x >= thresholds))
+
+
+# List of species that are defined as high density flowering for that year
+high_density_species <- mydata_2019$Flowering_species[mydata_2019$HighDensity]
+print(high_density_species)
+
+#Save the output
+write.csv(mydata_2019, file = "highdensity_sp_2019.csv")
+```
+
+Calculate the threshold for year 2020
+```{r}
+# read the file
+mydata_2020 = read.csv("Kaas_Phenology_2020.csv")
+
+# Calculate community threshold for each census 
+thresholds <- sapply(mydata_2020[, -c(1:9)], function(x) mean(x, na.rm = TRUE) + 1.64*(sd(x, na.rm = TRUE)))
+print(thresholds)  # This prints a vector of thresholds for each of the six census readings
+
+# Now, for each species (each row), check if its density in any one census exceeds the corresponding threshold
+mydata_2020$HighDensity <- apply(mydata_2020[, -c(1:9)], 1, function(x) any(x >= thresholds))
+
+
+# List of species that are defined as high density flowering for that year
+high_density_species <- mydata_2020$Flowering_species[mydata_2020$HighDensity]
+print(high_density_species)
+
+#Save the output
+write.csv(mydata_2020, file = "highdensity_sp_2020.csv")
+```
