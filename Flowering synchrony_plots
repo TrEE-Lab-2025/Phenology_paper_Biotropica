@@ -1,0 +1,294 @@
+---
+title: "Density plots for synchrony indices"
+output: html_notebook
+---
+
+
+AIM: Make synchrony indices for all species, MF, nMF and colour wise.
+
+1. For SI temp
+```{r}
+#read data
+library(readxl)
+SI_2020 = read.csv("Synchrony_Index_2020.csv", na = "NA")
+```
+
+
+1.1. Density plot for all species pairs
+
+Plotting for all species together
+```{r}
+library(ggplot2)
+library(ggridges)
+library(extrafont)
+
+
+r3 = ggplot(SI_2020, aes(x = SItemp, y = 1))+
+  #geom_density(fill = "lightgray", size = 0.7)+
+  geom_density_ridges(fill = "lightgray",
+                      jittered_points = TRUE, point_alpha=1,point_shape=16,point_size = 0.7,
+                      quantile_lines=TRUE, quantile_fun=function(SI_temp,...)mean(SI_temp), 
+                      vline_color = c("red"),
+                      vline_width = 1)+
+  theme_light()+
+  labs(
+    title = 'Density of SItemp (all spp pairs)')+
+  xlim(-0.05, 1.05)+
+  theme(plot.title = element_text(hjust = 0.5, size = 12))+
+  ylab("Density")+
+  xlab("SI temp")+
+  
+  
+  #Axis text
+  theme(axis.text.x = element_text(face="bold", color="black", family="Times New Roman", angle = 0, hjust = 0.5))+
+  theme(axis.text.y = element_text(face="bold", color="black", family="Times New Roman")) +
+  theme(
+  axis.text.y = element_blank(),
+  axis.ticks = element_blank())+
+  
+#Axis title
+  theme(axis.title.x = element_text(color="black", face="bold", family="Times New Roman", size = 12), axis.title.y = element_text(color="black", face="bold", family="Times New Roman", size = 12)) +
+  
+#Axis label
+   xlab("SI temp") + ylab("Density") +
+  
+#Legend
+   theme(legend.position = "right",legend.text=element_text(color= "black", family="Times New Roman", size = 12), legend.title = element_text(colour = "black", family="Times New Roman", size = 12)) + 
+   
+#Plot title
+  theme(plot.title = element_text(face = "bold", family="Times New Roman", hjust = 0.5))
+  
+  
+r3
+
+ggsave("Density of SItemp_all spp pairs_new.png", r3, width = 7, height = 3, dpi = 300, units = "in")
+```
+
+1.2. SI temp: density for MF and nMF
+
+
+```{r}
+# first combinie values of two colour columns to create a unique MF_nMF combination
+SI_2020$MF_nMF_Sp12<-paste(SI_2020$MF_nMF_Sp1, SI_2020$MF_nMF_Sp2, sep="_")
+
+
+#replace nMF_MF as MF_nMF
+SI_2020$MF_nMF_Sp12[SI_2020$MF_nMF_Sp12 == "nMF_MF"] <- "MF_nMF"
+
+
+#Keep only certain rows
+library(dplyr)
+SI_2020_MF_nMF <- SI_2020[SI_2020$MF_nMF_Sp12 %in% c("MF_MF", "nMF_nMF"),]
+
+#calculating mean and sem for SItemp for MF and nMF groups
+library(plyr)
+
+b = ddply(SI_2020_MF_nMF, .(MF_nMF_Sp12), summarise,
+                                      Mean = mean(SItemp),
+                                      SD = sd(SItemp),
+                                      sem = SD/ sqrt(length(SItemp)))
+b
+```
+
+Plotting
+```{r}
+
+library(ggridges)
+library(ggplot2)
+library(ggridges)
+library(extrafont)
+
+r4 = ggplot(SI_2020_MF_nMF, aes(x = SItemp, y = MF_nMF_Sp12, fill = MF_nMF_Sp12)) +
+  geom_density_ridges(size = 0.7, alpha=0.6, scale = 2, rel_min_height = 0,
+                      jittered_points = TRUE, point_alpha=1,
+                      point_shape=16,point_size = 0.7,
+                      quantile_lines=TRUE, quantile_fun=function(SItemp,...)mean(SItemp), 
+                      vline_color = c("red"),
+                      vline_width = 1) +
+  theme_ridges() + 
+  scale_fill_grey()+
+  theme_light()+
+  labs(
+    title = 'Density of SItemp (MF vs nMF)')+
+  xlim(-0.05, 1.05)+
+  theme(plot.title = element_text(hjust = 0.5, size = 12))+
+  #theme(axis.text.x = element_text(face= "bold", color= "black"))+
+  #theme(axis.text.y = element_text(face= "bold", color="black"))+
+  ylab("Density")+
+  xlab("SI temp")+
+  
+  #Axis text
+  theme(axis.text.x = element_text(face="bold", color="black", family="Times New Roman", angle = 0, hjust = 0.5))+
+  theme(axis.text.y = element_text(face="bold", color="black", family="Times New Roman")) +
+  theme(
+  axis.text.y = element_blank(),
+  axis.ticks = element_blank())+
+  
+#Axis title
+  theme(axis.title.x = element_text(color="black", face="bold", family="Times New Roman", size = 12), axis.title.y = element_text(color="black", face="bold", family="Times New Roman", size = 12)) +
+  
+#Axis label
+   xlab("SI temp") + ylab("Density") +
+  
+#Legend
+   theme(legend.position = "bottom",legend.text=element_text(color= "black", family="Times New Roman", size = 12), legend.title = element_text(colour = "black", family="Times New Roman", size = 12)) + 
+   
+#Plot title
+  theme(plot.title = element_text(face = "bold", family="Times New Roman", hjust = 0.5))
+
+
+
+r4
+
+ggsave("Density of SItemp_MF vs nMF.png", r4, width = 7, height = 5, dpi = 300, units = "in")
+
+```
+
+Combining 43 and r4
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(extrafont)
+
+r34 = ggarrange(r3, r4, ncol=1, nrow=2, legend="bottom")
+r34
+
+ggsave("Overall and MF_nMF wise density for SI_temp.png", r34, width = 7, height = 8, dpi = 300, units = "in")
+```
+
+
+
+
+II. For SI abd
+
+2.1. For all species pairs (community)
+
+Plotting for all species together
+```{r}
+library(ggplot2)
+library(ggridges)
+library(extrafont)
+
+
+r5 = ggplot(SI_2020, aes(x = SIabd, y = 1))+
+  #geom_density(fill = "lightgray", size = 0.7)+
+  geom_density_ridges(fill = "lightgray",
+                      jittered_points = TRUE, point_alpha=1,point_shape=16,point_size = 0.7,
+                      quantile_lines=TRUE, quantile_fun=function(SIabd,...)mean(SIabd), 
+                      vline_color = c("red"),
+                      vline_width = 1)+
+  theme_light()+
+  labs(
+    title = 'Density of SIabd (all spp pairs)')+
+  xlim(-0.05, 1.05)+
+  theme(plot.title = element_text(hjust = 0.5, size = 12))+
+  #theme(axis.text.x = element_text(face= "bold", color= "black"))+
+  #theme(axis.text.y = element_text(face= "bold", color="black"))+
+  ylab("Density")+
+  xlab("SI abd")+
+  
+  
+  #Axis text
+  theme(axis.text.x = element_text(face="bold", color="black", family="Times New Roman", angle = 0, hjust = 0.5))+
+  theme(axis.text.y = element_text(face="bold", color="black", family="Times New Roman")) +
+  theme(
+  axis.text.y = element_blank(),
+  axis.ticks = element_blank())+
+  
+#Axis title
+  theme(axis.title.x = element_text(color="black", face="bold", family="Times New Roman", size = 12), axis.title.y = element_text(color="black", face="bold", family="Times New Roman", size = 12)) +
+  
+#Axis label
+   xlab("SI abd") + ylab("Density") +
+  
+#Legend
+   theme(legend.position = "bottom",legend.text=element_text(color= "black", family="Times New Roman", size = 12), legend.title = element_text(colour = "black", family="Times New Roman", size = 12)) + 
+   
+#Plot title
+  theme(plot.title = element_text(face = "bold", family="Times New Roman", hjust = 0.5))
+  
+  
+r5
+
+ggsave("Density of SIabd_all spp pairs.png", r5, width = 7, height = 3, dpi = 300, units = "in")
+```
+
+2.2. SI abd: density for MF and nMF
+
+
+Calculating mean and se for MF and nMF
+```{r}
+#calculating mean and sem for SItemp for MF and nMF groups
+library(plyr)
+
+b = ddply(SI_2020_MF_nMF, .(MF_nMF_Sp12), summarise,
+                                      Mean = mean(SIabd, na.rm = T),
+                                      SD = sd(SIabd, na.rm = T),
+                                      sem = SD/ sqrt(length(SIabd, na.rm = T)))
+b
+```
+
+
+Plotting
+```{r}
+library(ggridges)
+library(ggplot2)
+library(ggridges)
+library(extrafont)
+
+r6 = ggplot(SI_2020_MF_nMF, aes(x = SIabd, y = MF_nMF_Sp12, fill = MF_nMF_Sp12)) +
+  geom_density_ridges(size = 0.7, alpha=0.6, scale = 2, rel_min_height = 0,
+                      jittered_points = TRUE, point_alpha=1,
+                      point_shape=16,point_size = 0.7,
+                      quantile_lines=TRUE, quantile_fun=function(SIabd,...)mean(SIabd), 
+                      vline_color = c("red"),
+                      vline_width = 1) +
+  theme_ridges() + 
+  scale_fill_grey()+
+  theme_light()+
+  labs(
+    title = 'Density of SIabd (MF vs nMF)')+
+  xlim(-0.05, 1.05)+
+  theme(plot.title = element_text(hjust = 0.5, size = 12))+
+  #theme(axis.text.x = element_text(face= "bold", color= "black"))+
+  #theme(axis.text.y = element_text(face= "bold", color="black"))+
+  ylab("Density")+
+  xlab("SI abd")+
+  
+  #Axis text
+  theme(axis.text.x = element_text(face="bold", color="black", family="Times New Roman", angle = 0, hjust = 0.5))+
+  theme(axis.text.y = element_text(face="bold", color="black", family="Times New Roman")) +
+  theme(
+  axis.text.y = element_blank(),
+  axis.ticks = element_blank())+
+  
+#Axis title
+  theme(axis.title.x = element_text(color="black", face="bold", family="Times New Roman", size = 12), axis.title.y = element_text(color="black", face="bold", family="Times New Roman", size = 12)) +
+  
+#Axis label
+   xlab("SI abd") + ylab("Density") +
+  
+#Legend
+   theme(legend.position = "bottom",legend.text=element_text(color= "black", family="Times New Roman", size = 12), legend.title = element_text(colour = "black", family="Times New Roman", size = 12)) + 
+   
+#Plot title
+  theme(plot.title = element_text(face = "bold", family="Times New Roman", hjust = 0.5))
+
+
+r6
+
+ggsave("Density of SIabd_MF vs nMF.png", r6, width = 7, height = 5, dpi = 300, units = "in")
+```
+
+Combining 45 and r6
+```{r}
+library(ggplot2)
+library(ggpubr)
+library(extrafont)
+
+r56 = ggarrange(r5, r6, ncol=1, nrow=2, legend="bottom")
+r56
+
+ggsave("Overall and MF_nMF wise density for SI_abd.png", r56, width = 7, height = 8, dpi = 300, units = "in")
+```
