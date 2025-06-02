@@ -9,8 +9,9 @@ Affiliation: 1Tropical Ecology and Evolution (TrEE) Lab, Department of Biologica
 Keywords: Kaas plateau, laterite plateau, native bees, plant community structure, plant-pollinator networks, sky island, synchrony index, tropical community
 
 This repository includes codes for the following analyses:
-1. Phenology: Classification of species into mass-flowering and non-mass-flowering species based on their flowering density.
-2. Phenology: Visualisation of the three-year-long flowering phenology observations.
-3. Flowering synchrony: Calculation of SItemp and SIabd as discussed in the manuscript.
-4. Flowering synchrony: Visualisation and various comparisons among species.
-5. Plant-pollinator network plotting, visualisation, and indices calculations  
+1. Section 2.2: GAMLSS analysis, climatic parameters.
+2. Section 2.3: Flowering phenology: Classification of species into mass-flowering and non-mass-flowering species based on their flowering density.
+3. Section 2.3: Flowering Phenology: Visualisation of the three-year-long flowering phenology observations.
+4. Section 2.4: Flowering synchrony: Calculation of SItemp and SIabd as discussed in the manuscript.
+5. Section 2.4: Flowering synchrony: Visualisation and various comparisons among species.
+6. Section 2.5: Plant-pollinator network plotting, visualisation, and indices calculations  
