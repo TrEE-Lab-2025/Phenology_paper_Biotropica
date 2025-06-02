@@ -1,0 +1,330 @@
+---
+title: "GAMLSS for climate correlation"
+output: html_notebook
+---
+
+I am choosing following parameters: Min and max temp, rainfall, Surface soil wetness and relative humidity. (not choosing the average temperatuire as suggested by reviewer).
+
+```{r}
+#load the original data
+library(googlesheets4)
+climate_data <- read_sheet("The link has been removed")
+
+#Extracting the variables of interest
+#Removing species richness column from here 
+my_climate_data = climate_data[, c(1,2,3,4,6,10,11,12,14,16,17)]
+
+```
+
+Take mean of each parameter for respective census value
+
+```{r}
+library(plyr)
+
+my_climate_4_census= ddply(climate_data, .(Census), summarize, 
+                           Year = min(YEAR),
+                           DOY = min(DOY),
+                           Serial_number = min(Serial_number),
+                           Temp = mean(Temperature_2M),
+                           MaxTemp = mean(Temperature_max),
+                           MinTemp = mean(Temperature_min),
+                           Rel.Humidity = mean(Rel._humidity_perc),
+                           Surface_soil_wetness = mean(Surface_soil_wetness),
+                           Rainfall = mean(Rainfall_mm),
+                           Rainfall_cumulative = sum(Rainfall_mm),
+                           Date = min(Date)
+                           )
+my_climate_4_census
+```
+
+Loading the flowering data
+
+```{r}
+library(googlesheets4)
+Flowering_rainfall <- read_sheet('The link has been removed', sheet = 3)
+
+Flowering_rainfall_1 = Flowering_rainfall[,c(1,7)]
+```
+Merging the two dataset to get Climate_flowering data
+
+```{r}
+library(tidyverse)
+
+# Merge the datasets
+climate_flowering <- merge(my_climate_4_census, Flowering_rainfall_1, by = "Census", all.x = TRUE)
+
+#arrange the dataset by serial number
+climate_flowering <- climate_flowering %>% arrange(`Serial_number`)
+
+
+#remove 2018 data because it was collected at 15 days intervals
+climate_flowering <- climate_flowering [-c(1:24),]
+```
+load packages
+```{r}
+# Load necessary libraries
+library(gamlss)
+library(gamlss.dist)
+library(gamlss.add)
+library(gamlss.cens)
+```
+
+Model 1: Flowering ~ Rainfall
+
+
+
+Preparing data and creating the lags
+
+```{r}
+
+library(dplyr)
+# Define maximum lag (e.g., 12 months = 36 intervals of 10 days)
+max_climatic_lag <- 22  # Adjust based on biological plausibility (e.g., 12 lags = 120 days)
+max_ar_lag <- 22        # Autoregressive lags for flowering (e.g., 12 lags = 120 days)
+
+# Function to create lagged variables
+create_lags <- function(data, var, max_lag) {
+  for (i in 1:max_lag) {
+    lag_var <- paste0(var, "_lag", i)
+    data[[lag_var]] <- dplyr::lag(data[[var]], i)
+    
+    # Print statement to check
+    print(paste("Created lag variable:", lag_var))
+  }
+  return(data)
+}
+
+# Assuming 'climate_flowering' is already your merged dataframe with columns 'date', 'flower_counts', 
+# 'rainfall', 'temp_max', 'temp_min', 'soil_wetness', and 'humidity'.
+
+# Create lagged variables for each climatic parameter and flowering
+climate_flowering <- create_lags(climate_flowering, "Rainfall_cumulative", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "MaxTemp", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "MinTemp", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Surface_soil_wetness", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Rel.Humidity", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Total_flowering_WOut_NA", max_ar_lag)
+
+# Remove rows with NAs from lagging
+climate_flowering <- na.omit(climate_flowering)
+
+# Print the first few rows to ensure lags are created properly
+print(head(climate_flowering))
+
+
+```
+
+Using CCF to determine optimal lag
+```{r}
+# Cross-correlation between rainfall and flowering counts
+ccf_result <- ccf(climate_flowering$Total_flowering_WOut_NA, climate_flowering$Rainfall_cumulative, main = "Cross-Correlation between Flowering Counts and Rainfall")
+
+# Print optimal lag based on maximum correlation
+optimal_lag <- which.max(ccf_result$acf[ ,1,1])
+print(paste("Optimal lag for Rainfall is:", optimal_lag))
+```
+
+Defining the model
+
+```{r}
+# Define the model formula using the optimal lag (example optimal_lag = 17)
+model_formula_rainfall_optimal <- as.formula(paste("Total_flowering_WOut_NA ~ pb(Rainfall_cumulative) +", 
+                                                   paste(paste0("Rainfall_cumulative_lag", 1:17), collapse = " + ")))
+
+# Fit the model using the optimal lag
+fit_nbi_rainfall_optimal <- stepGAIC(gamlss(formula = model_formula_rainfall_optimal, data = climate_flowering, family = NBI), direction = "forward")
+
+# Display summary
+summary(fit_nbi_rainfall_optimal)
+```
+
+Model 2: Max and min temperature
+
+Starting from the basline data. 
+Merging the two dataset to get Climate_flowering data
+
+```{r}
+library(tidyverse)
+
+# Merge the datasets
+climate_flowering <- merge(my_climate_4_census, Flowering_rainfall_1, by = "Census", all.x = TRUE)
+
+#arrange the dataset by serial number
+climate_flowering <- climate_flowering %>% arrange(`Serial_number`)
+
+
+#remove 2018 data because it was collected at 15 days intervals
+climate_flowering <- climate_flowering [-c(1:24),]
+```
+
+
+
+
+Preparing data and creating the lags upto 5
+
+```{r}
+
+library(dplyr)
+# Define maximum lag (e.g., 12 months = 36 intervals of 10 days)
+max_climatic_lag <- 5  # Adjust based on biological plausibility (e.g., 12 lags = 120 days)
+max_ar_lag <- 5        # Autoregressive lags for flowering (e.g., 12 lags = 120 days)
+
+# Function to create lagged variables
+create_lags <- function(data, var, max_lag) {
+  for (i in 1:max_lag) {
+    lag_var <- paste0(var, "_lag", i)
+    data[[lag_var]] <- dplyr::lag(data[[var]], i)
+    
+    # Print statement to check
+    print(paste("Created lag variable:", lag_var))
+  }
+  return(data)
+}
+
+# Assuming 'climate_flowering' is already your merged dataframe with columns 'date', 'flower_counts', 
+# 'rainfall', 'temp_max', 'temp_min', 'soil_wetness', and 'humidity'.
+
+# Create lagged variables for each climatic parameter and flowering
+climate_flowering <- create_lags(climate_flowering, "Rainfall_cumulative", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "MaxTemp", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "MinTemp", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Surface_soil_wetness", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Rel.Humidity", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Total_flowering_WOut_NA", max_ar_lag)
+
+# Remove rows with NAs from lagging
+climate_flowering <- na.omit(climate_flowering)
+
+```
+
+
+Defining the model
+
+```{r}
+# Define the model formula using the optimal lag (example optimal_lag = 17)
+model_formula_Max_minTemp_optimal <- as.formula(paste("Total_flowering_WOut_NA ~ pb(MaxTemp) + pb(MinTemp) +", 
+                                                   paste(paste0("MaxTemp_lag", 1:5), collapse = " + ")))
+
+# Fit the model using the optimal lag
+fit_nbi_max_min_temp_optimal <- stepGAIC(gamlss(formula = model_formula_Max_minTemp_optimal, data = climate_flowering, family = NBI), direction = "forward")
+
+# Display summary
+summary(fit_nbi_max_min_temp_optimal)
+```
+
+
+model 3: average temperature
+Starting from the basline data. 
+Merging the two dataset to get Climate_flowering data
+
+```{r}
+library(tidyverse)
+
+# Merge the datasets
+climate_flowering <- merge(my_climate_4_census, Flowering_rainfall_1, by = "Census", all.x = TRUE)
+
+#arrange the dataset by serial number
+climate_flowering <- climate_flowering %>% arrange(`Serial_number`)
+
+
+#remove 2018 data because it was collected at 15 days intervals
+climate_flowering <- climate_flowering [-c(1:24),]
+```
+
+
+Preparing data and creating the lags upto 5
+
+```{r}
+
+library(dplyr)
+# Define maximum lag (e.g., 12 months = 36 intervals of 10 days)
+max_climatic_lag <- 5  # Adjust based on biological plausibility (e.g., 12 lags = 120 days)
+max_ar_lag <- 5        # Autoregressive lags for flowering (e.g., 12 lags = 120 days)
+
+# Function to create lagged variables
+create_lags <- function(data, var, max_lag) {
+  for (i in 1:max_lag) {
+    lag_var <- paste0(var, "_lag", i)
+    data[[lag_var]] <- dplyr::lag(data[[var]], i)
+    
+    # Print statement to check
+    print(paste("Created lag variable:", lag_var))
+  }
+  return(data)
+}
+
+# Assuming 'climate_flowering' is already your merged dataframe with columns 'date', 'flower_counts', 
+# 'rainfall', 'temp_max', 'temp_min', 'soil_wetness', and 'humidity'.
+
+# Create lagged variables for each climatic parameter and flowering
+climate_flowering <- create_lags(climate_flowering, "Rainfall_cumulative", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "MaxTemp", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "MinTemp", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Temp", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Surface_soil_wetness", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Rel.Humidity", max_climatic_lag)
+climate_flowering <- create_lags(climate_flowering, "Total_flowering_WOut_NA", max_ar_lag)
+
+# Remove rows with NAs from lagging
+climate_flowering <- na.omit(climate_flowering)
+
+```
+
+
+Defining the model
+
+```{r}
+# Define the model formula using the optimal lag (example optimal_lag = 17)
+model_formula_avgTemp_optimal <- as.formula(paste("Total_flowering_WOut_NA ~ pb(Temp) +", 
+                                                   paste(paste0("Temp_lag", 1:5), collapse = " + ")))
+
+# Fit the model using the optimal lag
+fit_nbi_avgtemp_optimal <- stepGAIC(gamlss(formula = model_formula_avgTemp_optimal, data = climate_flowering, family = NBI), direction = "forward")
+
+# Display summary
+summary(fit_nbi_avgtemp_optimal)
+```
+
+
+Model 4: Relative humidity
+
+
+
+Using the same lags (1:5)
+
+Defining the model
+
+```{r}
+# Define the model formula using the optimal lag (example optimal_lag = 17)
+model_formula_Rel.Humidity_optimal <- as.formula(paste("Total_flowering_WOut_NA ~ pb(Rel.Humidity) + ", 
+                                                   paste(paste0("Rel.Humidity_lag", 1:5), collapse = " + ")))
+
+# Fit the model using the optimal lag
+fit_nbi_Rel.Humidity_optimal <- stepGAIC(gamlss(formula = model_formula_Rel.Humidity_optimal, data = climate_flowering, family = NBI), direction = "forward")
+
+# Display summary
+summary(fit_nbi_Rel.Humidity_optimal)
+```
+
+
+Model 4: Surface Soil Wetness
+
+
+
+Using the same lags (1:5)
+
+Defining the model
+
+```{r}
+# Define the model formula using the optimal lag (example optimal_lag = 17)
+model_formula_soil_wetness_optimal <- as.formula(paste("Total_flowering_WOut_NA ~ pb(Surface_soil_wetness) + ", 
+                                                   paste(paste0("Surface_soil_wetness_lag", 1:5), collapse = " + ")))
+
+# Fit the model using the optimal lag
+fit_nbi_soil_wetness_optimal <- stepGAIC(gamlss(formula = model_formula_soil_wetness_optimal, data = climate_flowering, family = NBI), direction = "forward")
+
+# Display summary
+summary(fit_nbi_soil_wetness_optimal)
+```
+
+
